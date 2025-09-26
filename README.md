@@ -17,6 +17,9 @@
     - [Language](#language)
     - [Audio Folder](#audio-folder)
     - [Transcripts Folder](#transcripts-folder)
+    - [📱 Mobile support and public hosts](#-mobile-support-and-public-hosts)
+      - [Option 1: Same WiFi network](#option-1-same-wifi-network)
+      - [Option 2: Public server](#option-2-public-server)
 
 ---
 
@@ -90,3 +93,20 @@ Open **Settings → Community plugins → Wisper (local server)** and configure:
 - Default: `Transcripts`
 - The relative path where the plugin saves new Markdown files with the transcription result.
 - Each transcription creates a **new file** named like:
+
+
+### 📱 Mobile support and public hosts
+
+By default, the plugin is designed for desktop use, since it connects to a Whisper server running locally on http://127.0.0.1:5000. On mobile devices (Android/iOS), you can still use the plugin, but you need to make your Whisper server accessible:
+
+#### Option 1: Same WiFi network
+
+Run your Whisper server on your PC and expose it on your LAN.
+In the plugin settings, set the server url to your expose ip.
+
+Now, Obsidian Mobile can reach your PC’s server while both devices are on the same WiFi.
+
+#### Option 2: Public server
+If you deploy Whisper on a server or VPS with a public IP or domain, you can access it anywhere.
+
+⚠️ Important: make sure you enable HTTPS and authentication if you expose your Whisper server publicly, to avoid sending audio unprotected over the internet.
