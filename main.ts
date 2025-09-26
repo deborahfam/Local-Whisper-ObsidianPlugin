@@ -24,47 +24,47 @@ const DEFAULT_SETTINGS: PluginSettings = {
   transcriptsFolder: "Transcripts"
 };
 
-export default class WisperLocalServerPlugin extends Plugin {
+export default class WhisperLocalServerPlugin extends Plugin {
   settings!: PluginSettings;
 
   async onload() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 
-    // Crear carpetas configuradas si no existen
+    // Create folders if they don't exist
     try { await this.app.vault.createFolder(this.settings.audioFolder); } catch (_) {}
     try { await this.app.vault.createFolder(this.settings.transcriptsFolder); } catch (_) {}
 
-    // Ribbon: grabar y transcribir
-    this.addRibbonIcon("circle-dot", "Grabar y transcribir (Whisper local)", async () => {
+    // Ribbon: record and transcribe
+    this.addRibbonIcon("circle-dot", "Record & Transcribe (Local Whisper)", async () => {
       new RecorderModal(this.app, async (file) => {
         if (file) await this.transcribeAudioFile(file);
       }, this.settings.audioFolder).open();
     });
 
-    // Comando: probar servidor
+    // Command: test server
     this.addCommand({
-      id: "wisper-local-test-server",
-      name: "Probar servidor Whisper local",
+      id: "whisper-local-test-server",
+      name: "Test Local Whisper Server",
       callback: async () => {
         try {
           const url = `${this.settings.serverUrl.replace(/\/$/, "")}/health`;
           const res = await requestUrl({ url, method: "GET" });
           if (res?.json?.ok) {
-            new Notice(`Servidor OK (modelo ${res.json.model})`);
+            new Notice(`Server OK (model ${res.json.model})`);
           } else {
-            new Notice("Respuesta inesperada del servidor (ver consola).");
+            new Notice("Unexpected server response (see console).");
           }
         } catch (err: any) {
-          console.error("Error probando servidor:", err);
-          new Notice("Fallo al contactar servidor (ver consola).");
+          console.error("Error testing server:", err);
+          new Notice("Failed to contact server (see console).");
         }
       }
     });
 
-    // Comando: transcribir archivo existente
+    // Command: transcribe existing file
     this.addCommand({
-      id: "wisper-local-transcribe-existing",
-      name: "Transcribir archivo de audio existente",
+      id: "whisper-local-transcribe-existing",
+      name: "Transcribe Existing Audio File",
       callback: async () => {
         const audio = await this.pickAudioFile(this.settings.audioFolder);
         if (audio) await this.transcribeAudioFile(audio);
@@ -76,12 +76,12 @@ export default class WisperLocalServerPlugin extends Plugin {
 
   onunload() {}
 
-  /** -------------------- Selección de archivos -------------------- */
+  /** -------------------- File selection -------------------- */
   private async pickAudioFile(dir: string): Promise<TFile | null> {
     const files = this.app.vault.getFiles()
       .filter(f => this.isSupportedAudio(f) && f.path.startsWith(dir + "/"));
     if (files.length === 0) {
-      new Notice(`No encontré audios en la carpeta ${dir}/`);
+      new Notice(`No audio files found in ${dir}/`);
       return null;
     }
     return await new AudioFileSuggestModal(this.app, files).openAndGet();
@@ -92,9 +92,9 @@ export default class WisperLocalServerPlugin extends Plugin {
     return ["mp3", "wav", "webm", "m4a", "flac"].includes(ext);
   }
 
-  /** -------------------- Transcripción -------------------- */
+  /** -------------------- Transcription -------------------- */
   private async transcribeAudioFile(file: TFile) {
-    new Notice(`Enviando a Whisper local: ${file.name} …`);
+    new Notice(`Sending to Local Whisper: ${file.name} …`);
     try {
       const arrayBuf = await this.app.vault.adapter.readBinary(file.path);
       const base64 = this.arrayBufferToBase64(arrayBuf);
@@ -117,43 +117,43 @@ export default class WisperLocalServerPlugin extends Plugin {
       });
 
       if (res.status !== 200) {
-        console.error("Respuesta error:", res);
-        new Notice(`Error del servidor (status ${res.status}).`);
+        console.error("Server error response:", res);
+        new Notice(`Server error (status ${res.status}).`);
         return;
       }
 
       const json = res.json;
       if (!json?.ok) {
-        console.error("Servidor devolvió error:", json);
-        new Notice("Servidor devolvió error. Ver consola.");
+        console.error("Server returned error:", json);
+        new Notice("Server returned error. See console.");
         return;
       }
 
       const transcript = (json.text || "").trim();
       if (!transcript) {
-        new Notice("Servidor respondió OK pero sin texto.");
+        new Notice("Server returned OK but with empty text.");
         return;
       }
 
       await this.saveTranscriptFile(file, transcript);
-      new Notice("✅ Transcripción guardada.");
+      new Notice("✅ Transcript saved.");
     } catch (err: any) {
-      console.error("Error transcribiendo:", err);
-      new Notice("Fallo al contactar servidor (ver consola).");
+      console.error("Error transcribing:", err);
+      new Notice("Failed to contact server (see console).");
     }
   }
 
-  /** -------------------- Guardar transcripción -------------------- */
+  /** -------------------- Save transcript -------------------- */
   private async saveTranscriptFile(srcFile: TFile, text: string) {
     const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
     const dir = this.settings.transcriptsFolder;
     const baseName = srcFile.basename.replace(/[\/\\:*?"<>|]+/g, "_");
     const newPath = `${dir}/${baseName}.${stamp}.md`;
-    const content = `# Transcripción de ${srcFile.name}\n\n${text}\n`;
+    const content = `# Transcript of ${srcFile.name}\n\n${text}\n`;
     await this.app.vault.create(newPath, content);
   }
 
-  /** -------------------- Utilidades -------------------- */
+  /** -------------------- Utilities -------------------- */
   private arrayBufferToBase64(buf: ArrayBuffer): string {
     const bytes = new Uint8Array(buf);
     let binary = "";
@@ -165,12 +165,18 @@ export default class WisperLocalServerPlugin extends Plugin {
   }
 }
 
-/** -------------------- Modal grabadora -------------------- */
+/** -------------------- Recorder Modal -------------------- */
 class RecorderModal extends Modal {
   private chunks: BlobPart[] = [];
   private recorder: MediaRecorder | null = null;
   private onFinish: (file: TFile | null) => void;
   private audioFolder: string;
+  private startTime: number = 0;
+  private timerEl!: HTMLElement;
+  private levelEl!: HTMLElement;
+  private rafId: number = 0;
+  private audioCtx!: AudioContext;
+  private analyser!: AnalyserNode;
 
   constructor(app: App, onFinish: (file: TFile | null) => void, audioFolder: string) {
     super(app);
@@ -181,52 +187,100 @@ class RecorderModal extends Modal {
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Grabadora de audio" });
-
-    const startBtn = contentEl.createEl("button", { text: "🎙️ Iniciar" });
-    const stopBtn = contentEl.createEl("button", { text: "⏹️ Detener" });
+    contentEl.addClass("recorder-modal");
+  
+    const header = contentEl.createEl("h2", { text: "Audio Recorder" });
+    header.addClass("recorder-header");
+  
+    this.timerEl = contentEl.createEl("div", { text: "⏱️ 00:00", cls: "recorder-timer" });
+  
+    // Mic level bar container
+    const levelContainer = contentEl.createEl("div", { cls: "recorder-level-container" });
+    this.levelEl = levelContainer.createEl("div", { cls: "recorder-level-bar" });
+  
+    // Buttons container
+    const btnContainer = contentEl.createEl("div", { cls: "recorder-buttons" });
+    const startBtn = btnContainer.createEl("button", { text: "🎙️ Start Recording", cls: "recorder-btn start" });
+    const stopBtn = btnContainer.createEl("button", { text: "⏹️ Stop Recording", cls: "recorder-btn stop" });
     stopBtn.disabled = true;
-
+  
     startBtn.onclick = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.audioCtx = new AudioContext();
+        const src = this.audioCtx.createMediaStreamSource(stream);
+        this.analyser = this.audioCtx.createAnalyser();
+        src.connect(this.analyser);
+  
         this.recorder = new MediaRecorder(stream);
         this.chunks = [];
-
+  
         this.recorder.ondataavailable = (e) => this.chunks.push(e.data);
         this.recorder.onstop = async () => {
+          cancelAnimationFrame(this.rafId);
+          header.removeClass("recording");
           const blob = new Blob(this.chunks, { type: "audio/webm" });
           const buf = await blob.arrayBuffer();
-          const baseName = `grabacion-${Date.now()}.webm`;
+          const baseName = `recording-${Date.now()}.webm`;
           const path = `${this.audioFolder}/${baseName}`;
           const file = await this.app.vault.createBinary(path, buf);
-          new Notice(`Grabación guardada en ${path}`);
+          new Notice(`Recording saved to ${path}`);
           this.onFinish(file);
           this.close();
         };
-
+  
         this.recorder.start();
+        this.startTime = Date.now();
+        this.updateTimer();
+        this.updateLevel();
+  
+        header.addClass("recording");
         startBtn.disabled = true;
         stopBtn.disabled = false;
       } catch (err) {
         console.error(err);
-        new Notice("No se pudo acceder al micrófono.");
+        new Notice("Failed to access microphone.");
       }
     };
-
+  
     stopBtn.onclick = () => {
       if (this.recorder && this.recorder.state === "recording") {
         this.recorder.stop();
       }
     };
   }
+  
+
+  private updateTimer() {
+    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+    const mins = String(Math.floor(elapsed / 60)).padStart(2, "0");
+    const secs = String(elapsed % 60).padStart(2, "0");
+    this.timerEl.setText(`⏱️ ${mins}:${secs}`);
+    if (this.recorder && this.recorder.state === "recording") {
+      setTimeout(() => this.updateTimer(), 1000);
+    }
+  }
+
+  private updateLevel() {
+    const data = new Uint8Array(this.analyser.fftSize);
+    this.analyser.getByteTimeDomainData(data);
+    const rms = Math.sqrt(data.reduce((s, v) => s + (v - 128) ** 2, 0) / data.length);
+    const percent = Math.min(100, (rms / 50) * 100);
+    (this.levelEl as HTMLElement).style.width = `${percent}%`;
+    if (this.recorder && this.recorder.state === "recording") {
+      this.rafId = requestAnimationFrame(() => this.updateLevel());
+    }
+  }
+  
 
   onClose() {
     this.onFinish(null);
+    if (this.audioCtx) this.audioCtx.close();
+    cancelAnimationFrame(this.rafId);
   }
 }
 
-/** -------------------- Selector de audio -------------------- */
+/** -------------------- Audio file selector -------------------- */
 class AudioFileSuggestModal extends SuggestModal<TFile> {
   private files: TFile[];
   private resolver!: (file: TFile | null) => void;
@@ -234,7 +288,7 @@ class AudioFileSuggestModal extends SuggestModal<TFile> {
   constructor(app: App, files: TFile[]) {
     super(app);
     this.files = files;
-    this.setPlaceholder("Selecciona un archivo de audio…");
+    this.setPlaceholder("Select an audio file…");
   }
 
   getSuggestions(query: string): TFile[] {
@@ -263,9 +317,9 @@ class AudioFileSuggestModal extends SuggestModal<TFile> {
 
 /** -------------------- Settings Tab -------------------- */
 class SettingsTab extends PluginSettingTab {
-  plugin: WisperLocalServerPlugin;
+  plugin: WhisperLocalServerPlugin;
 
-  constructor(app: App, plugin: WisperLocalServerPlugin) {
+  constructor(app: App, plugin: WhisperLocalServerPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -273,32 +327,32 @@ class SettingsTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Wisper (servidor local)" });
+    containerEl.createEl("h2", { text: "Whisper (Local Server)" });
 
     new Setting(containerEl)
-      .setName("URL del servidor")
-      .setDesc("Ejemplo: http://127.0.0.1:5000")
+      .setName("Server URL")
+      .setDesc("Example: http://127.0.0.1:5000")
       .addText(t => t
         .setValue(this.plugin.settings.serverUrl)
         .onChange(async v => { this.plugin.settings.serverUrl = v.trim(); await this.plugin.saveData(this.plugin.settings); }));
 
     new Setting(containerEl)
-      .setName("Idioma")
-      .setDesc("auto, es, en…")
+      .setName("Language")
+      .setDesc("auto, en, es…")
       .addText(t => t
         .setValue(this.plugin.settings.language)
         .onChange(async v => { this.plugin.settings.language = v.trim() || "auto"; await this.plugin.saveData(this.plugin.settings); }));
 
     new Setting(containerEl)
-      .setName("Carpeta de audios")
-      .setDesc("Dónde guardar las grabaciones y buscar audios")
+      .setName("Audio Folder")
+      .setDesc("Where to store recordings and look for audio files")
       .addText(t => t
         .setValue(this.plugin.settings.audioFolder)
         .onChange(async v => { this.plugin.settings.audioFolder = v.trim() || "Audio"; await this.plugin.saveData(this.plugin.settings); }));
 
     new Setting(containerEl)
-      .setName("Carpeta de transcripciones")
-      .setDesc("Dónde guardar los archivos .md con transcripciones")
+      .setName("Transcripts Folder")
+      .setDesc("Where to store .md transcript files")
       .addText(t => t
         .setValue(this.plugin.settings.transcriptsFolder)
         .onChange(async v => { this.plugin.settings.transcriptsFolder = v.trim() || "Transcripts"; await this.plugin.saveData(this.plugin.settings); }));
