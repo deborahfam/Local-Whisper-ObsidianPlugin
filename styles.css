@@ -99,3 +99,12 @@
     box-shadow: none;
   }
   
+  .recorder-btn.import {
+    background: linear-gradient(135deg, #5e35b1, #7e57c2);
+  }
+  
+  .recorder-btn.import:hover:enabled {
+    background: linear-gradient(135deg, #7e57c2, #9575cd);
+    transform: translateY(-2px);
+  }
+  

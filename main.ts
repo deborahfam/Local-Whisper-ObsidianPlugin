@@ -147,11 +147,16 @@ export default class WhisperLocalServerPlugin extends Plugin {
   private async saveTranscriptFile(srcFile: TFile, text: string) {
     const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
     const dir = this.settings.transcriptsFolder;
-    const baseName = srcFile.basename.replace(/[\/\\:*?"<>|]+/g, "_");
-    const newPath = `${dir}/${baseName}.${stamp}.md`;
-    const content = `# Transcript of ${srcFile.name}\n\n${text}\n`;
+    const baseName = stamp; // transcript name matches timestamp
+    const newPath = `${dir}/${baseName}.md`;
+  
+    // 🔗 Internal link to audio file
+    const linkToAudio = `![[${srcFile.path}]]`;
+  
+    const content = `# Transcript (${stamp})\n\n**Audio file:** ${linkToAudio}\n\n---\n\n${text}\n`;
     await this.app.vault.create(newPath, content);
   }
+  
 
   /** -------------------- Utilities -------------------- */
   private arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -200,10 +205,40 @@ class RecorderModal extends Modal {
   
     // Buttons container
     const btnContainer = contentEl.createEl("div", { cls: "recorder-buttons" });
+  
+    // NEW: Import Button
+    const importBtn = btnContainer.createEl("button", { text: "📂 Import Audio", cls: "recorder-btn import" });
+    
     const startBtn = btnContainer.createEl("button", { text: "🎙️ Start Recording", cls: "recorder-btn start" });
     const stopBtn = btnContainer.createEl("button", { text: "⏹️ Stop Recording", cls: "recorder-btn stop" });
     stopBtn.disabled = true;
   
+    /** -------------------- Import Button -------------------- */
+    importBtn.onclick = async () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".mp3,.wav,.webm,.m4a,.flac";
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (file) {
+          const arrayBuf = await file.arrayBuffer();
+        
+          const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+          const ext = file.name.split(".").pop() || "webm";
+          const baseName = `${stamp}.${ext}`;
+          const path = `${this.audioFolder}/${baseName}`;
+        
+          const obsFile = await this.app.vault.createBinary(path, arrayBuf);
+          new Notice(`Imported audio: ${obsFile.name}`);
+          this.onFinish(obsFile);
+          this.close();
+        }        
+      };
+      input.click();
+    };
+    
+  
+    /** -------------------- Start Button -------------------- */
     startBtn.onclick = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -219,15 +254,21 @@ class RecorderModal extends Modal {
         this.recorder.onstop = async () => {
           cancelAnimationFrame(this.rafId);
           header.removeClass("recording");
+        
           const blob = new Blob(this.chunks, { type: "audio/webm" });
           const buf = await blob.arrayBuffer();
-          const baseName = `recording-${Date.now()}.webm`;
+        
+          // 📅 File name: timestamp
+          const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+          const baseName = `${stamp}.webm`;
           const path = `${this.audioFolder}/${baseName}`;
+        
           const file = await this.app.vault.createBinary(path, buf);
           new Notice(`Recording saved to ${path}`);
           this.onFinish(file);
           this.close();
         };
+        
   
         this.recorder.start();
         this.startTime = Date.now();
@@ -243,12 +284,14 @@ class RecorderModal extends Modal {
       }
     };
   
+    /** -------------------- Stop Button -------------------- */
     stopBtn.onclick = () => {
       if (this.recorder && this.recorder.state === "recording") {
         this.recorder.stop();
       }
     };
   }
+  
   
 
   private updateTimer() {
