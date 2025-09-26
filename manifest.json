@@ -5,7 +5,8 @@
 	"minAppVersion": "1.5.0",
 	"description": "Transcribe audio usando Whisper instalado localmente.",
 	"author": "Deborah Famadas Rodríguez",
-	"authorUrl": "https://tusitio.ejemplo",
+	"repo": "deborahfam/Local-Whisper-ObsidianPlugin",
+	"branch": "main",
 	"isDesktopOnly": false
   }
   
