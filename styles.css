@@ -98,7 +98,7 @@
     color: #999;
     box-shadow: none;
   }
-  
+
   .recorder-btn.import {
     background: linear-gradient(135deg, #5e35b1, #7e57c2);
   }
@@ -106,5 +106,46 @@
   .recorder-btn.import:hover:enabled {
     background: linear-gradient(135deg, #7e57c2, #9575cd);
     transform: translateY(-2px);
+  }
+  .progress-modal {
+  text-align: center;
+  padding: 1.2em;
+  background: var(--background-primary);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  .progress-modal h2 {
+    color: #b388ff;
+    margin-bottom: 0.6em;
+  }
+
+  .spinner {
+    margin: 1.2em auto;
+    width: 40px;
+    height: 40px;
+    position: relative;
+  }
+
+  .spinner .dot1,
+  .spinner .dot2 {
+    width: 60%;
+    height: 60%;
+    background-color: #9575cd;
+    border-radius: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: bounce 2s infinite ease-in-out;
+  }
+
+  .spinner .dot2 {
+    animation-delay: -1s;
+    background-color: #7e57c2;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: scale(0.0); }
+    50% { transform: scale(1.0); }
   }
   

@@ -17,6 +17,34 @@ interface PluginSettings {
   transcriptsFolder: string;
 }
 
+class ProgressModal extends Modal {
+  private filename: string;
+
+  constructor(app: App, filename: string) {
+    super(app);
+    this.filename = filename;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("progress-modal");
+
+    contentEl.createEl("h2", { text: "Transcribing…" });
+    contentEl.createEl("p", { text: `Processing file: ${this.filename}` });
+
+    // Spinner
+    const spinner = contentEl.createEl("div", { cls: "spinner" });
+    spinner.createEl("div", { cls: "dot1" });
+    spinner.createEl("div", { cls: "dot2" });
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
+
 const DEFAULT_SETTINGS: PluginSettings = {
   serverUrl: "http://127.0.0.1:5000",
   language: "auto",
@@ -26,7 +54,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 export default class WhisperLocalServerPlugin extends Plugin {
   settings!: PluginSettings;
-
+  private ribbonEl: HTMLElement | null = null;
   async onload() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 
@@ -35,7 +63,7 @@ export default class WhisperLocalServerPlugin extends Plugin {
     try { await this.app.vault.createFolder(this.settings.transcriptsFolder); } catch (_) {}
 
     // Ribbon: record and transcribe
-    this.addRibbonIcon("circle-dot", "Record & Transcribe (Local Whisper)", async () => {
+    this.ribbonEl = this.addRibbonIcon("circle-dot", "Record & Transcribe (Local Whisper)", async () => {
       new RecorderModal(this.app, async (file) => {
         if (file) await this.transcribeAudioFile(file);
       }, this.settings.audioFolder).open();
@@ -92,21 +120,35 @@ export default class WhisperLocalServerPlugin extends Plugin {
     return ["mp3", "wav", "webm", "m4a", "flac"].includes(ext);
   }
 
+  private setRibbonStatus(isRunning: boolean) {
+    if (!this.ribbonEl) return;
+    if (isRunning) {
+      this.ribbonEl.setAttr("aria-label", "Transcribing…");
+      this.ribbonEl.addClass("transcribing");
+    } else {
+      this.ribbonEl.setAttr("aria-label", "Record & Transcribe (Local Whisper)");
+      this.ribbonEl.removeClass("transcribing");
+    }
+  }
   /** -------------------- Transcription -------------------- */
   private async transcribeAudioFile(file: TFile) {
-    new Notice(`Sending to Local Whisper: ${file.name} …`);
+    // Show progress modal
+    const progress = new ProgressModal(this.app, file.name);
+    this.setRibbonStatus(true);
+    progress.open();
+  
     try {
       const arrayBuf = await this.app.vault.adapter.readBinary(file.path);
       const base64 = this.arrayBufferToBase64(arrayBuf);
       const format = file.extension.toLowerCase();
-
+  
       const payload = {
         filename: file.name,
         data: base64,
         format: format,
         language: this.settings.language || "auto"
       };
-
+  
       const url = `${this.settings.serverUrl.replace(/\/$/, "")}/transcribe`;
       const res = await requestUrl({
         url,
@@ -115,33 +157,37 @@ export default class WhisperLocalServerPlugin extends Plugin {
         body: JSON.stringify(payload),
         throw: false
       });
-
+  
       if (res.status !== 200) {
         console.error("Server error response:", res);
         new Notice(`Server error (status ${res.status}).`);
         return;
       }
-
+  
       const json = res.json;
       if (!json?.ok) {
         console.error("Server returned error:", json);
         new Notice("Server returned error. See console.");
         return;
       }
-
+  
       const transcript = (json.text || "").trim();
       if (!transcript) {
         new Notice("Server returned OK but with empty text.");
         return;
       }
-
+  
       await this.saveTranscriptFile(file, transcript);
       new Notice("✅ Transcript saved.");
     } catch (err: any) {
       console.error("Error transcribing:", err);
       new Notice("Failed to contact server (see console).");
+    } finally {
+      this.setRibbonStatus(false);
+      progress.close();
     }
   }
+  
 
   /** -------------------- Save transcript -------------------- */
   private async saveTranscriptFile(srcFile: TFile, text: string) {
