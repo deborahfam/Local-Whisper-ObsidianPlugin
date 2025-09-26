@@ -1,0 +1,11 @@
+{
+	"id": "wisper-local",
+	"name": "Wisper Local",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Transcribe audio usando Whisper instalado localmente.",
+	"author": "Deborah Famadas Rodríguez",
+	"authorUrl": "https://tusitio.ejemplo",
+	"isDesktopOnly": false
+  }
+  
