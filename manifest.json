@@ -3,7 +3,7 @@
 	"name": "Wisper (Local Server)",
 	"version": "0.1.0",
 	"minAppVersion": "1.5.0",
-	"description": "Transcribe audio usando Whisper instalado localmente.",
+	"description": "Transcribe audio using locally installed Whisper.",
 	"author": "Deborah Famadas Rodríguez",
 	"repo": "deborahfam/obsidian-wisper-local-server",
 	"branch": "main",
