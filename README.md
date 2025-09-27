@@ -12,14 +12,9 @@
   - [How It Works](#how-it-works)
   - [Prerequisites (Already Installed/Running)](#prerequisites-already-installedrunning)
   - [Quick Start (User Flow)](#quick-start-user-flow)
-  - [Configuration](#configuration)
-    - [Server URL](#server-url)
-    - [Language](#language)
-    - [Audio Folder](#audio-folder)
-    - [Transcripts Folder](#transcripts-folder)
-    - [📱 Mobile support and public hosts](#-mobile-support-and-public-hosts)
-      - [Option 1: Same WiFi network](#option-1-same-wifi-network)
-      - [Option 2: Public server](#option-2-public-server)
+  - [📱 Mobile support and public hosts](#-mobile-support-and-public-hosts)
+    - [Option 1: Same WiFi network](#option-1-same-wifi-network)
+    - [Option 2: Public server](#option-2-public-server)
 
 ---
 
