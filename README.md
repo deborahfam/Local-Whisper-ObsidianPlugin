@@ -68,32 +68,6 @@ This documentation assumes you **already** have:
 
 ---
 
-## Configuration
-
-Open **Settings → Community plugins → Wisper (local server)** and configure:
-
-### Server URL
-- Default: `http://127.0.0.1:5000`
-- Points to your local Flask (or similar) Whisper server.
-- Must be reachable from Obsidian. Test via the **“Test server”** command.
-
-### Language
-- Default: `auto`
-- Examples: `es`, `en`, `pt`, etc.
-- Passed through to your server so Whisper can auto-detect or lock the language.
-
-### Audio Folder
-- Default: `Audio`
-- The relative path inside your vault where:
-  - New **recordings** are saved as `.webm`.
-  - The **picker** looks for existing audio files to transcribe (to be implemented).
-- The plugin will create the folder if it does not exist.
-
-### Transcripts Folder
-- Default: `Transcripts`
-- The relative path where the plugin saves new Markdown files with the transcription result.
-- Each transcription creates a **new file** named like:
-
 
 ### 📱 Mobile support and public hosts
 
