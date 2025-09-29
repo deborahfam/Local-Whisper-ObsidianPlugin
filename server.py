@@ -4,6 +4,7 @@ import base64
 import tempfile
 import os
 import traceback
+import torch
 
 try:
     import whisper
@@ -15,7 +16,8 @@ app = Flask(__name__)
 # Cargar el modelo una vez (puede tardar)
 MODEL_NAME = os.environ.get("WHISPER_MODEL", "base")  # puedes usar "small","medium","large" según tu GPU/CPU
 print("Cargando modelo Whisper:", MODEL_NAME)
-model = whisper.load_model(MODEL_NAME)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = whisper.load_model(MODEL_NAME, device=device)
 print("Modelo cargado.")
 
 @app.route("/health", methods=["GET"])
