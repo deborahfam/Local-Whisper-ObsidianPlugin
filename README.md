@@ -12,9 +12,11 @@
   - [How It Works](#how-it-works)
   - [Prerequisites (Already Installed/Running)](#prerequisites-already-installedrunning)
   - [Quick Start (User Flow)](#quick-start-user-flow)
-  - [📱 Mobile support and public hosts](#-mobile-support-and-public-hosts)
-    - [Option 1: Same WiFi network](#option-1-same-wifi-network)
-    - [Option 2: Public server](#option-2-public-server)
+  - [Docker for initializing the server](#docker-for-initializing-the-server)
+  - [Script for initializing the server](#script-for-initializing-the-server)
+    - [📱 Mobile support and public hosts](#-mobile-support-and-public-hosts)
+      - [Option 1: Same WiFi network](#option-1-same-wifi-network)
+      - [Option 2: Public server](#option-2-public-server)
 
 ---
 
@@ -62,6 +64,21 @@ This documentation assumes you **already** have:
 5. Find the **generated `.md`** in the Transcripts folder (timestamped filename).
 
 ---
+
+## Docker for initializing the server
+
+```
+docker build -t whisper-server .
+docker run -p 5000:5000 whisper-server
+```
+
+## Script for initializing the server
+
+```
+chmod +x run.sh # if needed
+./run.sh
+```
+
 
 
 ### 📱 Mobile support and public hosts
